@@ -1,34 +1,89 @@
 from __future__ import print_function
+from __future__ import division
+
 from collections import Counter
+
+import numpy as np
 
 
 def preprocess(string):
     return list(map(int, string.strip().split(' ')))
 
 
-def mate(gene1, gene2=('Aa', 'Bb')):
-    new_gene_set = Counter()
+def print_transition_matrix(mat, labels):
+    print(' ' * 6, end='')
+    for label in labels:
+        print('{:<6}'.format(label), end=' ')
+    print()
+    for r in range(9):
+        print(labels[r], end=': ')
+        for c in range(9):
+            print('{:.4f}'.format(mat[r, c]), end=' ')
+        print()
+
+
+def mate(gene1, gene2='AaBb'):
+    """Compute the probability distribution of the offspring genes"""
+    dist = Counter()
     for i in range(4):
-        i1, i2 = i % 2, i // 2
+        i1, i2 = i % 2, 2 + i // 2
         for j in range(4):
-            j1, j2 = j % 2, j // 2
-            new_g1 = ''.join(sorted([gene1[0][i1], gene2[0][j1]]))
-            new_g2 = ''.join(sorted([gene1[1][i2], gene2[1][j2]]))
-            new_gene = (new_g1, new_g2)
-            new_gene_set[new_gene] += 1
-    return new_gene_set
+            j1, j2 = j % 2, 2 + j // 2
+            gene = '{}{}'.format(
+                ''.join(sorted([gene1[i1], gene2[j1]])),
+                ''.join(sorted([gene1[i2], gene2[j2]])))
+            dist[gene] += 1 / 16
+    return dist
+
+
+def construct_base_transition_matrix():
+    """Compute the transition matrix of population for 1 generation"""
+    T = np.zeros((9, 9))
+    labels = ['AABB', 'AABb', 'AAbb', 'AaBB',
+              'AaBb', 'Aabb', 'aaBB', 'aaBb', 'aabb']
+    for g1 in ['AA', 'Aa', 'aa']:
+        for g2 in ['BB', 'Bb', 'bb']:
+            parent_gene = '{}{}'.format(g1, g2)
+            dist = mate(parent_gene)
+            raw = labels.index(parent_gene)
+            for offspring_gene, prob in dist.items():
+                col = labels.index(offspring_gene)
+                T[raw, col] = prob
+    return T, labels
+
+
+def construct_transition_matrix(k):
+    """Compute the transition matrix of population for k generation"""
+    T, labels = construct_base_transition_matrix()
+    mat = np.eye(9)
+    for _ in range(k):
+        mat = np.dot(mat, T)
+    return mat, labels
+
+
+def factorial(N):
+    ret = 1
+    for i in range(N):
+        ret *= (i+1)
+    return ret
+
+
+def prob_N(p, n, r):
+    """Compute the probability that event P occurs exactly r times.
+
+    p^r * (1-p)^(n-r) * n! / r! / (n-r)! """
+    q, m = 1 - p, n - r
+    return (p ** r) * (q ** m) * factorial(n) / factorial(r) / factorial(m)
 
 
 def solve((k, N)):
-    for gene1 in ['AA', 'Aa', 'aa']:
-        for gene2 in ['BB', 'Bb', 'bb']:
-            gene = (gene1, gene2)
-            new_gene = mate(gene)
-            print(gene, ('Aa', 'Bb'))
-            for key, count in new_gene.items():
-                print(key, count)
-            print()
-    return None
+    T, _ = construct_transition_matrix(k)
+    dist = np.array([[0, 0, 0, 0, 1, 0, 0, 0, 0]])
+    dist = np.dot(dist, T)
+    ret = 0.0
+    for n in range(N, 2**k + 1):
+        ret += prob_N(dist[0][4], 2**k, n)
+    return ret
 
 
 def parse_command_line_arguments():
