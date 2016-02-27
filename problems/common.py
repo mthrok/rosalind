@@ -99,3 +99,21 @@ def _reverse_rna_codon():
 
 
 REVERSE_RNA_CODON = _reverse_rna_codon()
+
+
+def dna2rna(string):
+    return string.replace('T', 'U')
+
+
+def rna2prot(string):
+    ret = ''
+    for i in range(0, len(string), 3):
+        substr = string[i:i+3]
+        if RNA_CODON[substr] == 'Stop':
+            break
+        ret += RNA_CODON[substr]
+    return ret
+
+
+def dna2prot(string):
+    return rna2prot(dna2rna(string))
